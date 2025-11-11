@@ -63,7 +63,12 @@ module.exports = (con) => {
                 success: true,
                 message: 'Login berhasil.',
                 token: token,
-                client_id: client.client_id
+                user: {
+          id: client.client_id,
+          name: client.name,
+          email: client.email
+        }
+
             });
 
         } catch (error) {
