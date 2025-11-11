@@ -45,7 +45,7 @@ module.exports = (con) => {
 
             // Ambil ID klien baru
             const newClientId = result.rows[0].client_id;
-
+            console.log(`➡️ [AUTH] Pengguna baru berhasil **Register**: ${name} (${email})`);
             // Kirim respons sukses
             res.status(201).send({
                 success: true,

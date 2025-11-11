@@ -57,7 +57,7 @@ module.exports = (con) => {
             };
 
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }); 
-
+            console.log(`➡️ [AUTH] Pengguna berhasil **Login**: ${email}`);
             // 4. Kirim Token
             res.status(200).send({
                 success: true,
