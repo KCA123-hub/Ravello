@@ -57,18 +57,13 @@ module.exports = (con) => {
             };
 
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }); 
-            console.log(`➡️ [AUTH] Pengguna berhasil **Login**: ${email}`);
+
             // 4. Kirim Token
             res.status(200).send({
                 success: true,
                 message: 'Login berhasil.',
                 token: token,
-                user: {
-          id: client.client_id,
-          name: client.name,
-          email: client.email
-        }
-
+                client_id: client.client_id
             });
 
         } catch (error) {
@@ -78,4 +73,4 @@ module.exports = (con) => {
     });
 
     return router; // Kembalikan objek router
-};
+};git 
