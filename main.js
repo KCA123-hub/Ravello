@@ -45,6 +45,10 @@ const createStoreRouter = require('./routes/store');
 const storeRouter = createStoreRouter(con);
 app.use('/store', storeRouter);
 
+const createProductRouter = require('./routes/product'); // Pastikan path benar
+const productRouter = createProductRouter(con); // Menyuntikkan koneksi DB
+app.use('/product', productRouter); // 👈 Endpoint utama: POST /product
+
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log('✅ Server is running on http://10.38.53.95:${PORT} 🚀');

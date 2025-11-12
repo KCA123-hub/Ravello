@@ -27,7 +27,7 @@ module.exports = (con) => {
   router.post('/login', async (req, res) => {
     
     // 🚨 DEBUGGING SEMENTARA
-    console.log("Request Body diterima:", req.body); 
+    
     // Jika outputnya {}, maka header Content-Type Anda salah.
     // ---------------------------------
 
@@ -35,7 +35,7 @@ module.exports = (con) => {
 
         try {
             // 1. Cari pengguna di database
-            const clientResult = await con.query('SELECT client_id, password, email FROM client WHERE email = $1', [email]);
+            const clientResult = await con.query('SELECT client_id, name, password, email FROM client WHERE email = $1', [email]);
             const client = clientResult.rows[0];
             
             if (!client) {
@@ -49,11 +49,12 @@ module.exports = (con) => {
             if (!passwordMatch) {
                 return res.status(401).send({ success: false, message: 'Email atau password salah.' });
             }
-
+             console.log(`➡️ [AUTH] Pengguna baru berhasil **Login**: ${client.name} (${client.email})`);
             // 3. Buat Payload dan Tandatangani Token
             const payload = { 
                 id: client.client_id, 
-                email: client.email 
+                email: client.email,
+                name: client.name
             };
 
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }); 
@@ -63,7 +64,9 @@ module.exports = (con) => {
                 success: true,
                 message: 'Login berhasil.',
                 token: token,
-                client_id: client.client_id
+                client_id: client.client_id,
+                name: client.name,          
+                email: client.email
             });
 
         } catch (error) {
@@ -73,4 +76,4 @@ module.exports = (con) => {
     });
 
     return router; // Kembalikan objek router
-};git 
+};
