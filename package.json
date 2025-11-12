@@ -1,11 +1,12 @@
 {
   "name": "express-api",
   "version": "1.0.0",
+  "type": "commonjs",
   "description": "API collections for LMS",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./src/index.js",
+    "start": "node app.js",
     "dev": "nodemon ./src/index.js"
   },
   "author": "pandu",
@@ -20,6 +21,7 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.5.2",
+    "nodemailer": "^7.0.10",
     "pg": "^8.16.3"
   }
 }

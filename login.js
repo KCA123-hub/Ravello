@@ -73,4 +73,4 @@ module.exports = (con) => {
     });
 
     return router; // Kembalikan objek router
-};git 
+};
