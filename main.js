@@ -1,7 +1,7 @@
 // File: main.js
 
 const express = require('express');
-const cors = require('cors'); // ⬅ Tambahkan ini
+const cors = require('cors');
 const { Client } = require('pg');
 const path = require('path');
 require('dotenv').config({ 
@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- MIDDLEWARE ---
-app.use(cors()); // ⬅ Izinkan akses dari perangkat lain
+app.use(cors());
 app.use(express.json());
 
 // --- KONFIGURASI DATABASE ---
@@ -45,13 +45,19 @@ const createStoreRouter = require('./routes/store');
 const storeRouter = createStoreRouter(con);
 app.use('/store', storeRouter);
 
-const createProductRouter = require('./routes/product'); // Pastikan path benar
-const productRouter = createProductRouter(con); // Menyuntikkan koneksi DB
-app.use('/product', productRouter); // 👈 Endpoint utama: POST /product
-
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', () => {
-    console.log('✅ Server is running on http://10.38.53.95:${PORT} 🚀');
-    console.log('🔐 Endpoint Login: POST http://10.38.53.95:${PORT}/auth/login');
-    console.log('📝 Endpoint Register: POST http://10.38.53.95:${PORT}/auth/register');
+    console.log('------------------------------------------------');
+    console.log(`✅ Server is running on:   http://10.38.53.95:${PORT} 🚀`);
+    console.log('------------------------------------------------');
+    console.log('📍 Available Endpoints:');
+    console.log(`🔐 Login:          POST http://10.38.53.95:${PORT}/auth/login`);
+    console.log(`📝 Register:       POST http://10.38.53.95:${PORT}/auth/register`);
+    console.log(`🛒 Store:          GET  http://10.38.53.95:${PORT}/store`);
+    console.log(`👥 Client:         POST http://10.38.53.95:${PORT}/postClient`);
+    console.log(`🔁 Forgot Password:`);
+    console.log(`   ├─ Request OTP: POST http://10.38.53.95:${PORT}/forgot-password/request-otp`);
+    console.log(`   ├─ Verify OTP:  POST http://10.38.53.95:${PORT}/forgot-password/verify-otp`);
+    console.log(`   └─ Reset Pass:  POST http://10.38.53.95:${PORT}/forgot-password/reset-password`);
+    console.log('------------------------------------------------');
 });
