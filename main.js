@@ -46,9 +46,11 @@ const storeRouter = createStoreRouter(con);
 app.use('/store', storeRouter);
 
 
-// --- FORGOT PASSWORD ROUTER ---
-const forgotPasswordRouter = require("./routes/forgotPassword")(con);
-app.use("/forgot-password", forgotPasswordRouter);
+const createForgotPasswordRouter = require('./routes/forgotPassword');
+const forgotPasswordRouter = createForgotPasswordRouter(con);
+app.use('/forgot-password', forgotPasswordRouter);
+
+app.use('/store', storeRouter);
 
 
 // --- START SERVER ---
