@@ -45,6 +45,10 @@ const createStoreRouter = require('./routes/store');
 const storeRouter = createStoreRouter(con);
 app.use('/store', storeRouter);
 
+const createProductRouter = require('./routes/product');
+const productRouter = createProductRouter(con); 
+app.use('/product', productRouter);
+
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log('------------------------------------------------');
