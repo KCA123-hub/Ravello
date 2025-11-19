@@ -13,7 +13,8 @@ module.exports = (con) => {
         
         // 2. Ambil data produk dan category_id dari Body
         const { product_name, description, price, stock, category_id } = req.body;
-
+        console.log(req.body);
+        
         try {
             // Validasi input dasar
             if (!product_name || !price || !category_id || stock == null) {

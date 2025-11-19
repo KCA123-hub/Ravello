@@ -11,7 +11,7 @@ module.exports = (db) => {
 
     try {
       // Cek apakah email terdaftar
-      const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+      const result = await db.query('SELECT * FROM client WHERE email = $1', [email]);
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Email tidak ditemukan' });
       }
@@ -21,14 +21,14 @@ module.exports = (db) => {
 
       // Simpan token + waktu kedaluwarsa (1 jam)
       const expire = new Date(Date.now() + 3600000);
-      await db.query('UPDATE users SET reset_token = $1, token_expire = $2 WHERE email = $3', [token, expire, email]);
+      await db.query('UPDATE client SET reset_token = $1, token_expire = $2 WHERE email = $3', [token, expire, email]);
 
       // Konfigurasi transport nodemailer
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
+          client: process.env.EMAIL_client,
+          pass: process.env.EMAIL_pass,
         },
       });
 
@@ -37,7 +37,7 @@ module.exports = (db) => {
 
       // Kirim email
       await transporter.sendMail({
-        from: `"Admin Ravello" <${process.env.EMAIL_USER}>`,
+        from: `"Admin Ravello" <${process.env.EMAIL_client}>`,
         to: email,
         subject: 'Reset Password Anda',
         html: `
