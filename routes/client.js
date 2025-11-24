@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const generateOtp = require('../utils/otp_generator'); 
-const OTP_PURPOSES = require('../utils/otp_constants');
+const OTP_PURPOSES = require('../utils/otp_contants');
 const nodemailer = require('nodemailer'); 
 const path = require('path');
 
