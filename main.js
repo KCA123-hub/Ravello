@@ -1,5 +1,3 @@
-// File: main.js
-
 const express = require('express');
 const cors = require('cors');
 const { Client } = require('pg');
@@ -49,9 +47,9 @@ const createProductRouter = require('./routes/product');
 const productRouter = createProductRouter(con); 
 app.use('/product', productRouter);
 
-const createForgotPasswordRouter = require('./routes/forgotPassword');
-const forgotPasswordRouter = createForgotPasswordRouter(con);
-app.use('/forgot-password', forgotPasswordRouter);
+const createResetRouter = require('./routes/forgotPassword'); // Ganti dengan nama file Anda
+const resetRouter = createResetRouter(con); 
+app.use('/', resetRouter);
 
 app.use('/store', storeRouter);
 

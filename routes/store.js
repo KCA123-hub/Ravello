@@ -1,21 +1,17 @@
-// File: routes/store.js
-
 const express = require('express');
 const router = express.Router();
-// Import middleware verifikasi token
+
 const verifyToken = require('../middleware/auth.js'); 
 
-// Ekspor fungsi router yang menerima koneksi DB (con)
+
 module.exports = (con) => {
     
-    // 🚨 Endpoint POST yang Dilindungi Token
-    // Kita sisipkan middleware verifyToken di sini!
+
     router.post('/', verifyToken, async (req, res) => {
         
-        // 🚨 Ambil client_id dari req.clientId yang disuntikkan oleh middleware
+       
         const client_id = req.clientId; 
         
-        // Ambil data toko dari body
         const { store_name, description, address } = req.body;
 
         try {
@@ -25,7 +21,6 @@ module.exports = (con) => {
             );
 
             if (existingStore.rows.length > 0) {
-                // Jika klien sudah memiliki toko, tolak permintaan
                 return res.status(403).send({ 
                     success: false, 
                     message: "Akses ditolak: Anda hanya diperbolehkan mendaftar satu toko." 
@@ -45,7 +40,7 @@ module.exports = (con) => {
                 success: true, 
                 message: "Toko berhasil didaftarkan.",
                 store_id: newStoreId,
-                owner_id: client_id // Konfirmasi client_id diambil dari token
+                owner_id: client_id 
             });
 
         } catch (err) {

@@ -1,28 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const verifyToken = require('../middleware/auth'); // Middleware untuk mengambil req.clientId
+const verifyToken = require('../middleware/auth'); 
 
-// Ekspor fungsi router yang menerima koneksi DB (con)
+
 module.exports = (con) => {
 
-    // 🚨 Endpoint: POST /product (Dilindungi oleh Token)
+   
     router.post('/', verifyToken, async (req, res) => {
         
-        // 1. Ambil ID pengguna dari Token
+      
         const client_id = req.clientId; 
         
-        // 2. Ambil data produk dan category_id dari Body
+    
         const { product_name, description, price, stock, category_id } = req.body;
         console.log(req.body);
         
         try {
-            // Validasi input dasar
+         
             if (!product_name || !price || !category_id || stock == null) {
                 return res.status(400).send({ success: false, message: "Nama, harga, stok, dan category_id wajib diisi." });
             }
 
-            // --- TAHAP I: VERIFIKASI KEPEMILIKAN TOKO ---
-            // Cari store_id yang dimiliki oleh client_id ini
+          
             const storeResult = await con.query(
                 'SELECT store_id FROM store WHERE client_id = $1',
                 [client_id]
@@ -34,7 +33,6 @@ module.exports = (con) => {
             
             const store_id = storeResult.rows[0].store_id;
 
-            // --- TAHAP II: INSERT PRODUCT BARU ---
             const insert_query = `
                 INSERT INTO product (store_id, category_id, product_name, price, stock, description) 
                 VALUES ($1, $2, $3, $4, $5, $6) 
@@ -55,7 +53,6 @@ module.exports = (con) => {
         } catch (err) {
             console.error("Database Error (Product Post):", err.stack);
             
-            // Error 23503: Foreign Key Violation (misal: category_id tidak ada)
             if (err.code === '23503') {
                 return res.status(400).send({ success: false, message: "category_id atau store_id tidak valid (Foreign Key violation)." });
             }

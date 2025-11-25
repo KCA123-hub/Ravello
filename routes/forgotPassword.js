@@ -1,59 +1,161 @@
-// File: routes/forgotPassword.js
 const express = require('express');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
 const router = express.Router();
+const jwt = require('jsonwebtoken'); 
+const nodemailer = require('nodemailer'); 
+const generateOtp = require('../utils/otp_generator'); 
+const OTP_PURPOSES = require('../utils/otp_constants');
+const path = require('path');
 
-module.exports = (db) => {
-  // Endpoint untuk request reset password
-  router.post('/', async (req, res) => {
-    const { email } = req.body;
 
-    try {
-      // Cek apakah email terdaftar
-      const result = await db.query('SELECT * FROM client WHERE email = $1', [email]);
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'Email tidak ditemukan' });
-      }
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') }); 
 
-      // Buat token unik
-      const token = crypto.randomBytes(20).toString('hex');
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const JWT_SECRET = process.env.JWT_SECRET;
+const APP_PORT = process.env.PORT || 3000;
 
-      // Simpan token + waktu kedaluwarsa (1 jam)
-      const expire = new Date(Date.now() + 3600000);
-      await db.query('UPDATE client SET reset_token = $1, token_expire = $2 WHERE email = $3', [token, expire, email]);
+module.exports = (con) => {
+    
 
-      // Konfigurasi transport nodemailer
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          client: process.env.EMAIL_client,
-          pass: process.env.EMAIL_pass,
-        },
-      });
+    router.post('/forgot-password', async (req, res) => {
+        const { email } = req.body;
+        const standardizedEmail = email ? email.toLowerCase() : '';
+        const purpose = OTP_PURPOSES.PASSWORD_RESET;
 
-      // Tautan reset password
-      const resetLink = `http://localhost:${process.env.PORT}/reset-password/${token}`;
+        console.log(`\n🔵 [START] Request FORGOT PASSWORD untuk email: ${email}`);
 
-      // Kirim email
-      await transporter.sendMail({
-        from: `"Admin Ravello" <${process.env.EMAIL_client}>`,
-        to: email,
-        subject: 'Reset Password Anda',
-        html: `
-          <h2>Permintaan Reset Password</h2>
-          <p>Klik tautan di bawah ini untuk mengatur ulang password Anda:</p>
-          <a href="${resetLink}">${resetLink}</a>
-          <p>Link ini akan kedaluwarsa dalam 1 jam.</p>
-        `,
-      });
+        try {
+            if (!standardizedEmail) {
+                return res.status(400).send({ success: false, message: "Email wajib diisi." });
+            }
 
-      res.status(200).json({ message: 'Email reset password telah dikirim' });
-    } catch (err) {
-      console.error('Error:', err);
-      res.status(500).json({ message: 'Terjadi kesalahan server' });
-    }
-  });
+           
+            const clientCheck = await con.query('SELECT client_id FROM client WHERE email = $1', [standardizedEmail]);
+            
+            if (clientCheck.rows.length === 0) {
+                console.log(`   -> ⚠️ GAGAL: Email ${email} tidak terdaftar.`);
+                return res.status(200).json({ success: true, message: 'Email tidak terdaftar.' });
+            }
 
-  return router;
+            
+            await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
+
+           
+            const { code, expiresAt } = generateOtp();
+            const TEMP_REG_ID = null; 
+
+           
+            await con.query(
+                `INSERT INTO otp_verification (email, otp_code, otp_expire, purpose, temp_reg_id) 
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [standardizedEmail, code, expiresAt, purpose, TEMP_REG_ID] 
+            );
+
+           
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+            });
+
+            await transporter.sendMail({
+                from: `"Admin Ravello 😎" <${EMAIL_USER}>`,
+                to: standardizedEmail,
+                subject: 'Kode Reset Password Akun Anda',
+                html: `
+                    <h2>Kode Reset Password</h2>
+                    <p>Kode OTP Anda adalah: <b>${code}</b></p>
+                    <p>Kode ini akan kedaluwarsa dalam 5 menit. Masukkan kode ini di aplikasi Anda untuk melanjutkan.</p>
+                `,
+            });
+            console.log(`   -> Success: Email OTP dikirim ke ${standardizedEmail}.`);
+            res.status(200).json({ success: true, message: 'Kode reset password telah dikirim.' });
+
+        } catch (err) {
+            console.error("Forgot Password Error:", err.stack);
+            res.status(500).send({ success: false, message: "Gagal memproses permintaan reset password." });
+        }
+    });
+    
+    
+    router.post('/verify-reset-otp', async (req, res) => {
+        const { email, otp_code } = req.body;
+        const standardizedEmail = email ? email.toLowerCase() : '';
+        const purpose = OTP_PURPOSES.PASSWORD_RESET;
+
+        try {
+            if (!standardizedEmail || !otp_code) {
+                return res.status(400).send({ success: false, message: "Email dan kode OTP wajib diisi." });
+            }
+            
+           
+            const otpResult = await con.query(
+                `SELECT otp_expire FROM otp_verification 
+                 WHERE email = $1 AND otp_code = $2 AND purpose = $3 
+                 ORDER BY otp_expire DESC LIMIT 1`,
+                [standardizedEmail, otp_code, purpose]
+            );
+
+            if (otpResult.rows.length === 0) {
+                console.log("   -> ⚠️ GAGAL: Kode OTP salah.");
+                return res.status(401).send({ success: false, message: "Kode OTP salah." });
+            }
+            const otpRow = otpResult.rows[0]; 
+
+            
+            if (new Date() > new Date(otpRow.otp_expire)) {
+                await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
+                console.log("   -> ⚠️ GAGAL: Kode OTP sudah kadaluwarsa.");
+                return res.status(401).send({ success: false, message: "Kode OTP telah kedaluwarsa. Silakan minta kode baru." });
+            }
+
+           
+            await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
+            
+            
+            res.status(200).send({
+                success: true,
+                message: "Verifikasi berhasil. Lanjutkan untuk mengatur password baru.",
+                email: standardizedEmail 
+            });
+
+        } catch (err) {
+            console.error("Verify Reset OTP Error:", err.stack);
+            res.status(500).send({ success: false, message: "Gagal memproses verifikasi." });
+        }
+    });
+    
+    
+    router.post('/reset-password', async (req, res) => {
+        const { email, new_password } = req.body;
+        const standardizedEmail = email ? email.toLowerCase() : '';
+        console.log(`\n🔵 [START] Request RESET PASSWORD untuk email: ${email}`);
+        try {
+            if (!standardizedEmail || !new_password) {
+                return res.status(400).send({ success: false, message: "Email dan password baru wajib diisi." });
+            }
+            
+           
+            const updateResult = await con.query(
+                'UPDATE client SET password = $1 WHERE email = $2 RETURNING client_id',
+                [new_password, standardizedEmail]
+            );
+
+            if (updateResult.rows.length === 0) {
+                console.log(`   -> ⚠️ GAGAL: Pengguna ${standardizedEmail} tidak ditemukan .`);
+                 return res.status(404).send({ success: false, message: "Pengguna tidak ditemukan." });
+            }
+
+            console.log(`✅ [AUTH] Password berhasil direset untuk email: ${standardizedEmail}`);
+            res.status(200).send({
+                success: true,
+                message: "Password berhasil direset. Silakan login dengan password baru Anda."
+            });
+
+        } catch (err) {
+            console.error("Reset Password Error:", err.stack);
+            res.status(500).send({ success: false, message: "Gagal memproses reset password." });
+        }
+    });
+
+    return router;
 };

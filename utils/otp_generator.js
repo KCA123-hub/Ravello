@@ -6,7 +6,7 @@ const ONE_TIME_LIMIT_MS = 5 * 60 * 1000;
  */
 function generateOtp() {
     // Menghasilkan angka acak 6 digit (100000 hingga 999999)
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
     
     // Menghitung waktu kedaluwarsa (Waktu Sekarang + 5 Menit)
     const expiresAt = new Date(Date.now() + ONE_TIME_LIMIT_MS);
