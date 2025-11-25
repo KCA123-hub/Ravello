@@ -46,7 +46,7 @@ module.exports = (con) => {
 
            
             await con.query(
-                `INSERT INTO otp_verification (email, otp_code, otp_expire, purpose, temp_reg_id) 
+                `INSERT INTO otp_verification (email, otp, otp_expire, purpose, temp_reg_id) 
                  VALUES ($1, $2, $3, $4, $5)`,
                 [standardizedEmail, code, expiresAt, purpose, TEMP_REG_ID] 
             );
@@ -78,21 +78,21 @@ module.exports = (con) => {
     
     
     router.post('/verify-reset-otp', async (req, res) => {
-        const { email, otp_code } = req.body;
+        const { email, otp} = req.body;
         const standardizedEmail = email ? email.toLowerCase() : '';
         const purpose = OTP_PURPOSES.PASSWORD_RESET;
 
         try {
-            if (!standardizedEmail || !otp_code) {
+            if (!standardizedEmail || !otp) {
                 return res.status(400).send({ success: false, message: "Email dan kode OTP wajib diisi." });
             }
             
            
             const otpResult = await con.query(
                 `SELECT otp_expire FROM otp_verification 
-                 WHERE email = $1 AND otp_code = $2 AND purpose = $3 
+                 WHERE email = $1 AND otp = $2 AND purpose = $3 
                  ORDER BY otp_expire DESC LIMIT 1`,
-                [standardizedEmail, otp_code, purpose]
+                [standardizedEmail, otp, purpose]
             );
 
             if (otpResult.rows.length === 0) {
