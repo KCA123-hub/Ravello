@@ -36,6 +36,22 @@ module.exports = (con) => {
             const result = await con.query(insert_query, values);
             const newStoreId = result.rows[0].store_id;
 
+            console.log(`[STORE] Toko baru berhasil dibuat. Store ID: ${newStoreId}, Owner ID: ${client_id}`);
+
+            const updateRoleQuery = `
+                UPDATE client 
+                SET role = 'seller' 
+                WHERE client_id = $1 AND role = 'user' 
+                RETURNING client_id
+            `;
+            const updateResult = await con.query(updateRoleQuery, [client_id]);
+            
+            if (updateResult.rowCount > 0) {
+                console.log(`🔄 [ROLE UPDATE] Client ID ${client_id} role diubah menjadi 'seller'.`);
+            } else {
+                console.log(`ℹ️ [ROLE SKIP] Client ID ${client_id} role tidak diubah (sudah 'seller' atau role lainnya).`);
+            }
+
             res.status(201).send({ 
                 success: true, 
                 message: "Toko berhasil didaftarkan.",
