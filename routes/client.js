@@ -189,5 +189,89 @@ module.exports = (con) => {
         }
     });
 
+
+const verifyToken = require('../middleware/auth');
+
+router.put('/', verifyToken, async (req, res) => {
+    const client_id = req.clientId; // dari middleware verifyToken
+    const { name, email, phone_number, bio } = req.body; // ✅ TAMBAH bio
+
+    try {
+        if (!name && !email && !phone_number && !bio) { // ✅ TAMBAH bio
+            return res.status(400).send({
+                success: false,
+                message: "Minimal satu data harus diubah."
+            });
+        }
+
+        // Ambil data lama (✅ TAMBAH bio)
+        const currentData = await con.query(
+            'SELECT name, email, phone_number, bio FROM client WHERE client_id = $1',
+            [client_id]
+        );
+
+        if (currentData.rows.length === 0) {
+            return res.status(404).send({
+                success: false,
+                message: "Client tidak ditemukan."
+            });
+        }
+
+        const oldData = currentData.rows[0];
+
+        const finalName = name || oldData.name;
+        const finalEmail = email ? email.toLowerCase() : oldData.email;
+        const finalPhone = phone_number || oldData.phone_number;
+        const finalBio = bio ?? oldData.bio; // ✅ TAMBAH bio
+
+        // Cek email jika diubah
+        if (email && email !== oldData.email) {
+            const emailCheck = await con.query(
+                'SELECT client_id FROM client WHERE email = $1',
+                [finalEmail]
+            );
+            if (emailCheck.rows.length > 0) {
+                return res.status(409).send({
+                    success: false,
+                    message: "Email sudah digunakan."
+                });
+            }
+        }
+
+        const updateQuery = `
+            UPDATE client
+            SET name = $1,
+                email = $2,
+                phone_number = $3,
+                bio = $4
+            WHERE client_id = $5
+            RETURNING client_id, name, email, phone_number, bio
+        `;
+
+        const values = [
+            finalName,
+            finalEmail,
+            finalPhone,
+            finalBio,
+            client_id
+        ];
+
+        const result = await con.query(updateQuery, values);
+
+        res.status(200).send({
+            success: true,
+            message: "Profil berhasil diperbarui.",
+            data: result.rows[0]
+        });
+
+    } catch (err) {
+        console.error("Database Error (Update Client):", err.stack);
+        res.status(500).send({
+            success: false,
+            message: "Gagal memperbarui data client."
+        });
+    }
+});
+
     return router;
 };

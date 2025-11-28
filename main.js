@@ -79,6 +79,9 @@ const createCartRouter = require('./routes/cart');
 const cartRouter = createCartRouter(con);
 app.use('/cart', cartRouter);
 
+app.use('/uploads', express.static('uploads'));
+
+
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log('------------------------------------------------');

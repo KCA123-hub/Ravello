@@ -68,5 +68,72 @@ module.exports = (con) => {
         }
     });
 
+    router.put('/:store_id', verifyToken, async (req, res) => {
+    // 1. Ambil ID dari Token dan URL
+    const client_id = req.clientId; // ID pemilik dari JWT
+    const store_id = req.params.store_id; // ID toko yang ingin diupdate dari URL
+    
+    // 2. Ambil data yang akan diupdate dari Body
+    const { store_name, description, address } = req.body;
+
+    try {
+        // Validasi input dasar
+        if (!store_name || !description || !address) {
+            return res.status(400).send({ 
+                success: false, 
+                message: "Nama toko, deskripsi, dan alamat wajib diisi." 
+            });
+        }
+
+        // --- TAHAP I: VERIFIKASI KEPEMILIKAN ---
+        // Cek apakah client_id dari Token adalah pemilik sah dari store_id ini
+        const checkOwnership = await con.query(
+            'SELECT client_id FROM store WHERE store_id = $1 AND client_id = $2',
+            [store_id, client_id]
+        );
+
+        if (checkOwnership.rows.length === 0) {
+            // Jika toko tidak ditemukan ATAU tidak dimiliki oleh client ini
+            return res.status(403).send({ 
+                success: false, 
+                message: "Akses ditolak. Toko tidak ditemukan atau Anda bukan pemilik sah." 
+            });
+        }
+
+        // --- TAHAP II: EKSEKUSI UPDATE ---
+        const updateQuery = `
+            UPDATE store 
+            SET store_name = $1, 
+                description = $2, 
+                address = $3
+            WHERE store_id = $4
+            RETURNING store_id, store_name
+        `;
+        const updateValues = [store_name, description, address, store_id];
+        
+        const result = await con.query(updateQuery, updateValues);
+
+        if (result.rowCount === 0) {
+            return res.status(404).send({ success: false, message: "Pembaruan gagal. Toko tidak ditemukan." });
+        }
+
+        console.log(`✅ [STORE UPDATE] Toko ID ${store_id} berhasil diupdate oleh Client ID ${client_id}.`);
+
+        res.status(200).send({
+            success: true,
+            message: "Data toko berhasil diperbarui.",
+            store_id: result.rows[0].store_id,
+            new_name: result.rows[0].store_name
+        });
+
+    } catch (err) {
+        console.error("Database Error (UPDATE Store):", err.stack);
+        res.status(500).send({
+            success: false, 
+            message: "Terjadi kesalahan server saat pembaruan data."
+        });
+    }
+});
+
     return router;
 };
