@@ -79,7 +79,7 @@ const createCartRouter = require('./routes/cart');
 const cartRouter = createCartRouter(con);
 app.use('/cart', cartRouter);
 
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // --- START SERVER ---

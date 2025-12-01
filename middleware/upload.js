@@ -1,29 +1,23 @@
 const multer = require('multer');
 const path = require('path');
 
+// Konfigurasi storage ke folder uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, 'uploads/'); // folder penyimpanan
   },
   filename: (req, file, cb) => {
-    const uniqueName = Date.now() + path.extname(file.originalname);
-    cb(null, uniqueName);
+    const uniqueName =
+      Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueName + path.extname(file.originalname));
   }
 });
 
 const upload = multer({
-  limits: { fileSize: 5 * 1024 * 1024 }, // max 5MB
-  fileFilter: (req, file, cb) => {
-    const allowed = /jpg|jpeg|png/;
-    const ext = allowed.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    if (ext) {
-      cb(null, true);
-    } else {
-      cb(new Error('Hanya gambar JPG, JPEG, PNG yang diizinkan'));
-    }
-  }
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // max 5MB
+  },
 });
 
 module.exports = upload;
