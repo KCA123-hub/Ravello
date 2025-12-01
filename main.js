@@ -79,6 +79,10 @@ const createCartRouter = require('./routes/cart');
 const cartRouter = createCartRouter(con);
 app.use('/cart', cartRouter);
 
+const createOrderRouter = require('./routes/order-detail');
+const orderRouter = createOrderRouter(con);
+app.use('/order-detail', orderRouter);
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
