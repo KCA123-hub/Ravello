@@ -4,7 +4,7 @@ module.exports = (con) => {
     const router = express.Router();
 
     
-    router.post('/detail', async (req, res) => {
+    router.post('/order-detail', async (req, res) => {
         const { client_id, product_id, quantity } = req.body;
 
         // Validasi input
