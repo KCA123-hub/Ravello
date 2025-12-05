@@ -24,6 +24,7 @@ const verifyToken = (req, res, next) => {
    jwt.verify(token, JWT_SECRET, (err, decoded) => {
     // ...
     req.clientId = decoded.id; // 👈 ID diambil dari token
+    console.log(`[DEBUG MIDDLEWARE] Token berhasil diekstrak. Menggunakan Client ID: ${decoded.id}`);
     next();
     
 });

@@ -8,6 +8,7 @@ module.exports = (con) => {
     // ➤ Tambah item ke keranjang
    router.post('/', verifyToken, async (req, res) => {
     const client_id = req.clientId; // Dari JWT
+    console.log(`[DEBUG CART] Menerima request untuk Client ID: ${client_id}`);
     const { product_id } = req.body; // Kuantitas diasumsikan selalu +1 per request
 
     try {
