@@ -1,5 +1,3 @@
-// File: routes/client.js
-
 const express = require('express');
 const router = express.Router();
 const generateOtp = require('../utils/otp_generator'); 
@@ -221,16 +219,6 @@ module.exports = (con) => {
 
             const oldData = currentData.rows[0];
 
-            // Cek jika password disertakan di body (untuk hashing jika perlu)
-            const { password: new_password } = req.body;
-            let hashedPassword = oldData.password; // Default ke hash lama
-
-            if (new_password) {
-                // 🚨 HASHING PASSWORD BARU
-                hashedPassword = await hashPasswordScrypt(new_password); 
-            }
-            // ----------------------------------------------------
-
             const finalName = name || oldData.name;
             const finalEmail = email ? email.toLowerCase() : oldData.email;
             const finalPhone = phone_number || oldData.phone_number;
@@ -256,7 +244,6 @@ module.exports = (con) => {
                     email = $2,
                     phone_number = $3,
                     bio = $4,
-                    password = $6  // 🚨 Tambahkan update password
                 WHERE client_id = $5
                 RETURNING client_id, name, email, phone_number, bio
             `;
@@ -267,7 +254,6 @@ module.exports = (con) => {
                 finalPhone,
                 finalBio,
                 client_id,
-                hashedPassword // 🚨 Nilai hash baru/lama
             ];
 
             const result = await con.query(updateQuery, values);
