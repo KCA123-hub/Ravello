@@ -194,67 +194,74 @@ module.exports = (con) => {
     // --- ENDPOINT 3: PUT /client (Update Profil) ---
     router.put('/', verifyToken, async (req, res) => {
         const client_id = req.clientId; // dari middleware verifyToken
-        const { name, email, phone_number, bio } = req.body; 
+         // 🚨 PERBAIKAN 1: Tambahkan 'address' ke destructuring
+        const { name, email, phone_number, bio, address } = req.body; 
 
         try {
-            if (!name && !email && !phone_number && !bio) { 
-                return res.status(400).send({
-                    success: false,
-                    message: "Minimal satu data harus diubah."
-                });
+         // 🚨 PERBAIKAN 2: Tambahkan 'address' ke validasi
+         if (!name && !email && !phone_number && !bio && !address) { 
+             return res.status(400).send({
+                success: false,
+                message: "Minimal satu data harus diubah."
+             });
             }
 
-            // Ambil data lama
-            const currentData = await con.query(
-                'SELECT name, email, phone_number, bio FROM client WHERE client_id = $1',
-                [client_id]
-            );
+             // 🚨 PERBAIKAN 3: Ambil data lama, termasuk 'address'
+             const currentData = await con.query(
+            'SELECT name, email, phone_number, bio, address FROM client WHERE client_id = $1',
+             [client_id]
+         );
 
             if (currentData.rows.length === 0) {
                 return res.status(404).send({
-                    success: false,
-                    message: "Client tidak ditemukan."
-                });
-            }
+                     success: false,
+                     message: "Client tidak ditemukan."
+            });
+         }
 
-            const oldData = currentData.rows[0];
+         const oldData = currentData.rows[0];
 
+            // 🚨 PERBAIKAN 4: Logic Defaulting untuk Address
             const finalName = name || oldData.name;
             const finalEmail = email ? email.toLowerCase() : oldData.email;
             const finalPhone = phone_number || oldData.phone_number;
             const finalBio = bio ?? oldData.bio; 
+            const finalAddress = address || oldData.address; // 👈 Alamat baru/lama
 
-            // Cek email jika diubah
-            if (email && email !== oldData.email) {
+             // Cek email jika diubah
+             if (email && email !== oldData.email) {
                 const emailCheck = await con.query(
                     'SELECT client_id FROM client WHERE email = $1',
                     [finalEmail]
                 );
                 if (emailCheck.rows.length > 0) {
-                    return res.status(409).send({
+                     return res.status(409).send({
                         success: false,
                         message: "Email sudah digunakan."
-                    });
-                }
-            }
+                 });
+             }
+         }
 
-            const updateQuery = `
-                UPDATE client
-                SET name = $1,
+            // 🚨 PERBAIKAN 5: Tambahkan 'address' ke Query UPDATE
+             const updateQuery = `
+             UPDATE client
+                 SET name = $1,
                     email = $2,
                     phone_number = $3,
                     bio = $4,
-                WHERE client_id = $5
-                RETURNING client_id, name, email, phone_number, bio
-            `;
+                    address = $5  // 👈 Kolom baru
+                WHERE client_id = $6 // 👈 client_id pindah ke $6
+            RETURNING client_id, name, email, phone_number, bio, address
+                 `;
 
             const values = [
                 finalName,
                 finalEmail,
                 finalPhone,
                 finalBio,
-                client_id,
-            ];
+                finalAddress, // 👈 Nilai $5
+                client_id    // 👈 Nilai $6
+        ];
 
             const result = await con.query(updateQuery, values);
 
@@ -264,14 +271,14 @@ module.exports = (con) => {
                 data: result.rows[0]
             });
 
-        } catch (err) {
+         } catch (err) {
             console.error("Database Error (Update Client):", err.stack);
             res.status(500).send({
                 success: false,
                 message: "Gagal memperbarui data client."
             });
-        }
-    });
+         }
+     });
 
     return router;
 };
