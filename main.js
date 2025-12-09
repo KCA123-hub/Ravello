@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { Client } = require('pg');
+const { Pool } = require('pg');
 const path = require('path');
 require('dotenv').config({ 
     path: path.resolve(__dirname, '.env') 
@@ -30,13 +30,20 @@ app.use((req, res, next) => {
 
 
 // --- KONFIGURASI DATABASE ---
-const con = new Client({
+const con = new Pool({
     host: process.env.DB_HOST || "localhost",
     user: process.env.DB_USER || "postgres",
     port: process.env.DB_PORT || 5432,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
 });
+
+con.query('SELECT 1 + 1 AS result')
+    .then(() => console.log("✅ Connected to PostgreSQL Pool successfully! 🎉"))
+    .catch(err => {
+        console.error("❌ Connection error to PostgreSQL. Please check DB credentials in .env:", err.stack);
+        process.exit(1);
+    });
 
 // --- KONEKSI DATABASE ---
 con.connect()
@@ -79,9 +86,16 @@ const createCartRouter = require('./routes/cart');
 const cartRouter = createCartRouter(con);
 app.use('/cart', cartRouter);
 
-const createOrderRouter = require('./routes/order-detail');
-const orderRouter = createOrderRouter(con);
-app.use('/order-detail', orderRouter);
+const orderRouter = require('./routes/order'); // Pastikan path file benar
+app.use('/order', orderRouter(con)); // 👈 PASTIKAN BASE PATH INI ADALAH '/order'
+
+const createOrderRouter2 = require('./routes/order-detail');
+const orderRouter2 = createOrderRouter2(con);
+app.use('/order-detail', orderRouter2);
+
+const createPaymentRouter = require('./routes/payment'); 
+const paymentRouter = createPaymentRouter(con);
+app.use('/payment', paymentRouter); // Base path /payment
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

@@ -1,5 +1,3 @@
-// File: config/login.js
-
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); 
@@ -36,8 +34,9 @@ module.exports = (con) => {
              return res.status(400).send({ success: false, message: 'Email dan password wajib diisi.' });
              }
 
-            // 1. Cari pengguna di database (ambil hash password yang tersimpan)
-            const clientResult = await con.query('SELECT client_id, name, password, email FROM client WHERE email = $1', [standardizedEmail]);
+            // 1. Cari pengguna di database (ambil hash password, name, email)
+            // 🚨 PERUBAHAN KRITIS: TAMBAH KOLOM 'role' di SELECT
+            const clientResult = await con.query('SELECT client_id, name, password, email, role FROM client WHERE email = $1', [standardizedEmail]);
             const client = clientResult.rows[0];
 
             if (!client) {
@@ -47,38 +46,41 @@ module.exports = (con) => {
             // 2. Bandingkan Password (MENGGUNAKAN SCRYPT)
              const hashedPasswordDB = client.password; // Ambil hash (salt.hash) dari DB
 
-             // 🚨 PERUBAHAN UTAMA: Gunakan comparePasswordScrypt
-            // await digunakan karena comparePasswordScrypt mengembalikan Promise
-            const passwordMatch = await comparePasswordScrypt(password, hashedPasswordDB);
+             // Gunakan comparePasswordScrypt
+             const passwordMatch = await comparePasswordScrypt(password, hashedPasswordDB);
 
             if (!passwordMatch) {
                 return res.status(401).send({ success: false, message: 'Email atau password salah.' });
             }
             
             // 3. Buat Payload dan Tandatangani Token
+            // 🚨 PERUBAHAN KRITIS: TAMBAH KOLOM 'role' di payload
              const payload = { 
                 id: client.client_id, 
                  email: client.email,
-                 name: client.name
-            };
-            console.log(`[DEBUG LOGIN] ID yang dimasukkan ke token: ${client.client_id}`);
+                 name: client.name,
+                 role: client.role // 👈 ROLE DITAMBAHKAN KE PAYLOAD
+             };
+             console.log(`[DEBUG LOGIN] ID yang dimasukkan ke token: ${client.client_id}, Role: ${client.role}`);
              const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }); 
 
             // 4. Kirim Token
+            // 🚨 PERUBAHAN KRITIS: TAMBAH KOLOM 'role' di response
              res.status(200).send({
                 success: true,
                 message: 'Login berhasil.',
                  token: token,
                  client_id: client.client_id,
                  name: client.name, 
-                email: client.email
-            });
+                 email: client.email,
+                 role: client.role // 👈 ROLE DITAMBAHKAN KE RESPONSE
+             });
 
         } catch (error) {
             console.error("Login Error:", error.stack);
              res.status(500).send({ success: false, message: 'Terjadi kesalahan server internal.' });
         }
-     });
+      });
 
-     return router; // Kembalikan objek router
+      return router; // Kembalikan objek router
 };

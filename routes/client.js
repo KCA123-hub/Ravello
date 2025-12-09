@@ -249,8 +249,8 @@ module.exports = (con) => {
                     email = $2,
                     phone_number = $3,
                     bio = $4,
-                    address = $5  // 👈 Kolom baru
-                WHERE client_id = $6 // 👈 client_id pindah ke $6
+                    address = $5  
+                WHERE client_id = $6 
             RETURNING client_id, name, email, phone_number, bio, address
                  `;
 
