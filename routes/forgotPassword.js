@@ -24,6 +24,8 @@ module.exports = (con) => {
         const standardizedEmail = email ? email.toLowerCase() : '';
         const purpose = OTP_PURPOSES.PASSWORD_RESET;
 
+        const action_flow = 'PASSWORD_RESET';
+
         try {
             if (!standardizedEmail) {
                 return res.status(400).send({ success: false, message: "Email wajib diisi." });
@@ -73,54 +75,8 @@ module.exports = (con) => {
             console.error("Forgot Password Error:", err.stack);
             res.status(500).send({ success: false, message: "Gagal memproses permintaan reset password." });
         }
-    });
-    
-    // --- ENDPOINT 2: POST /verify-reset-otp (Verifikasi Kode) ---
-    router.post('/verify-reset-otp', async (req, res) => {
-        const { email, otp } = req.body;
-        const standardizedEmail = email ? email.toLowerCase() : '';
-        const purpose = OTP_PURPOSES.PASSWORD_RESET;
-
-        try {
-            if (!standardizedEmail || !otp) {
-                return res.status(400).send({ success: false, message: "Email dan kode OTP wajib diisi." });
-            }
-            
-            // 1. Cari Kode OTP yang Masih Aktif
-            const otpResult = await con.query(
-                `SELECT otp_expire FROM otp_verification 
-                 WHERE email = $1 AND otp = $2 AND purpose = $3 
-                 ORDER BY otp_expire DESC LIMIT 1`,
-                [standardizedEmail, otp, purpose]
-            );
-
-            if (otpResult.rows.length === 0) {
-                return res.status(401).send({ success: false, message: "Kode OTP salah atau tidak ditemukan." });
-            }
-            const otpRow = otpResult.rows[0]; 
-
-            // 2. Cek Kedaluwarsa
-            if (new Date() > new Date(otpRow.otp_expire)) {
-                await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
-                return res.status(401).send({ success: false, message: "Kode OTP telah kedaluwarsa. Silakan minta kode baru." });
-            }
-
-            // 3. Hapus kode setelah sukses verifikasi
-            await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
-            
-            // 4. Beri respons sukses
-            res.status(200).send({
-                success: true,
-                message: "Verifikasi berhasil. Lanjutkan untuk mengatur password baru.",
-                email: standardizedEmail 
-            });
-
-        } catch (err) {
-            console.error("Verify Reset OTP Error:", err.stack);
-            res.status(500).send({ success: false, message: "Gagal memproses verifikasi." });
-        }
-    });
-    
+    });   
+       
     // --- ENDPOINT 4: POST /reset-password (Update Password) ---
     router.post('/reset-password', async (req, res) => {
         const { email, password } = req.body;

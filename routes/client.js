@@ -18,6 +18,7 @@ module.exports = (con) => {
     
     // --- ENDPOINT 1: POST /client (Kirim OTP & Simpan Data Sementara) ---
     router.post('/', async (req, res) => {
+            const action_flow = 'REGISTRATION';
         try {
             const { name, email, phone_number, password, role } = req.body;
             
@@ -80,7 +81,7 @@ module.exports = (con) => {
                 `,
             });
 
-            console.log(`➡️ [AUTH] OTP berhasil dikirim ke: ${email}. Kode: ${code}`);
+            console.log(`➡️ [AUTH] OTP berhasil dikirim ke: ${email}. Kode: ${code}. Action Flow: ${action_flow}`);
             res.status(200).send({
                 success: true,
                 message: "OTP telah dikirim ke email Anda. Kedaluwarsa dalam 5 menit."
@@ -98,98 +99,6 @@ module.exports = (con) => {
             });
         }
     });
-    
-    // --- ENDPOINT 2: POST /client/verify-otp (Verifikasi & Finalisasi) ---
-    router.post('/verify-otp', async (req, res) => {
-        
-        const { email, otp } = req.body; 
-        const purpose = OTP_PURPOSES.REGISTRATION;
-        const standardizedEmail = email.toLowerCase();
-
-
-        try {
-            // 1. Validasi Input Kritis
-            if (!standardizedEmail || !otp) {
-                return res.status(400).send({ success: false, message: "Email dan kode OTP wajib diisi." });
-            }
-
-            // 2. Cari Kode OTP yang Masih Aktif
-            const otpResult = await con.query(
-                `SELECT otp_expire, temp_reg_id FROM otp_verification 
-                 WHERE email = $1 AND otp = $2 AND purpose = $3 
-                 ORDER BY otp_expire DESC LIMIT 1`,
-                [standardizedEmail, otp, purpose]
-            );
-
-            // Cek keberadaan baris
-            if (otpResult.rows.length === 0) {
-                return res.status(401).send({ success: false, message: "Kode OTP salah atau tidak ditemukan." });
-            }
-            const otpRow = otpResult.rows[0]; 
-            
-            // 3. Cek Kedaluwarsa
-            const now = new Date();
-            const expireTime = new Date(otpRow.otp_expire);
-
-            if (now > expireTime) {
-                // Hapus data sementara yang kedaluwarsa
-                await con.query('DELETE FROM temp_registration WHERE temp_id = $1', [otpRow.temp_reg_id]);
-                await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
-                return res.status(401).send({ success: false, message: "Kode OTP telah kedaluwarsa. Silakan minta kode baru." });
-            }
-
-            // --- TAHAP FINALISASI AKUN ---
-
-            // 4. Ambil data registrasi lengkap dari tabel sementara
-            const tempRegistrationId = otpRow.temp_reg_id; 
-            const tempRegResult = await con.query(
-                'SELECT name, email, phone_number, password, role FROM temp_registration WHERE temp_id = $1',
-                [tempRegistrationId]
-            );
-            const tempUserData = tempRegResult.rows[0];
-
-            if (!tempUserData) {
-                return res.status(500).send({ success: false, message: "Data registrasi sementara tidak ditemukan. Silakan coba mendaftar ulang." });
-            }
-            
-            // 5. Masukkan Data ke Tabel client (Permanent)
-            // CATATAN: tempUserData.password di sini sudah merupakan HASH yang aman.
-            const insert_query = `INSERT INTO client (name, email, phone_number, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING client_id, name, email`;
-            const values = [tempUserData.name, tempUserData.email, tempUserData.phone_number, tempUserData.password, tempUserData.role];
-
-            const result = await con.query(insert_query, values);
-            const newClientData = result.rows[0];
-            
-            // 6. Bersihkan data sementara (penting!)
-            await con.query('DELETE FROM otp_verification WHERE email = $1 AND purpose = $2', [standardizedEmail, purpose]);
-            await con.query('DELETE FROM temp_registration WHERE temp_id = $1', [tempRegistrationId]);
-
-            // 7. Auto-Login (Pembuatan Token)
-            const payload = { 
-                id: newClientData.client_id, 
-                email: newClientData.email,
-                name: newClientData.name
-            };
-            const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }); 
-
-
-            console.log(`✅ [AUTH] Registrasi final berhasil untuk ID: ${newClientData.client_id}`);
-            res.status(201).send({
-                success: true,
-                message: "Registrasi dan verifikasi berhasil! Akun Anda sudah aktif.",
-                client_id: newClientData.client_id,
-                token: token
-            });
-
-        } catch (err) {
-            console.error("Database Error (OTP Verification):", err.stack);
-            if (err.code === '23505') { 
-                return res.status(409).send({ success: false, message: "Email sudah terdaftar." });
-            }
-            res.status(500).send({ success: false, message: "Gagal memproses verifikasi." });
-        }
-    });
-
 
     // --- ENDPOINT 3: PUT /client (Update Profil) ---
     router.put('/', verifyToken, async (req, res) => {

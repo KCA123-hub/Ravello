@@ -78,9 +78,13 @@ const createProductRouter = require('./routes/product');
 const productRouter = createProductRouter(con); 
 app.use('/product', productRouter);
 
-const createResetRouter = require('./routes/forgotPassword'); // Ganti dengan nama file Anda
-const resetRouter = createResetRouter(con); 
-app.use('/', resetRouter);
+const createVerifyOtpRouter = require('./routes/verify-otp'); 
+const verifyOtpRouter = createVerifyOtpRouter(con); 
+app.use('/', verifyOtpRouter);
+
+const createForgotResetRouter = require('./routes/forgotPassword'); 
+const forgotResetRouter = createForgotResetRouter(con); 
+app.use('/auth', forgotResetRouter);
 
 const createCartRouter = require('./routes/cart');
 const cartRouter = createCartRouter(con);
@@ -98,6 +102,22 @@ const paymentRouter = createPaymentRouter(con);
 app.use('/payment', paymentRouter); // Base path /payment
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use((req, res, next) => {
+    // Jika tidak ada router yang menangkap request, kirim 404 JSON
+    res.status(404).json({
+        success: false,
+        message: 'Endpoint tidak ditemukan.'
+    });
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack); // Log error di server
+    res.status(500).json({
+        success: false,
+        message: 'Kesalahan Server Internal (500). Cek log backend untuk detail.'
+    });
+});
 
 
 // --- START SERVER ---
