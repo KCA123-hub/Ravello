@@ -195,7 +195,7 @@ module.exports = (con) => {
 
 
     // --- ENDPOINT PUT /store/:store_id (Update Toko) ---
-    router.put('/:store_id', verifyToken, async (req, res) => {
+    router.put('/store_id', verifyToken, async (req, res) => {
         // ... (KODE SAMA: PUT /:store_id) ...
     // 1. Ambil ID dari Token dan URL
     const client_id = req.clientId; // ID pemilik dari JWT
@@ -262,6 +262,106 @@ module.exports = (con) => {
         });
     }
 });
+
+    router.put('/order/:order_id/status', verifyToken, verifyStoreOwner(con), async (req, res) => {
+        const store_id = req.storeId; // Diperoleh dari middleware verifyStoreOwner
+        const order_id = req.params.order_id;
+        const { new_status } = req.body; // Status baru yang dikirim: 'shipped' atau 'completed'
+
+        // Daftar status yang diizinkan untuk diubah oleh penjual
+        const validStatuses = ['shipped', 'completed'];
+
+        if (!new_status || !validStatuses.includes(new_status)) {
+            return res.status(400).json({
+                message: "Status baru tidak valid. Hanya menerima: 'shipped' atau 'completed'."
+            });
+        }
+        
+        let client;
+
+        try {
+            client = await con.connect();
+            await client.query('BEGIN'); // Mulai Transaksi
+
+            // 1. Verifikasi: Cek apakah pesanan ada, milik toko ini, dan dalam status yang bisa diubah.
+            // Kita harus memastikan setidaknya ada satu item di pesanan tersebut yang berasal dari toko milik store_id ini.
+            const ownershipQuery = `
+                SELECT 
+                    o.status
+                FROM 
+                    "order" o
+                JOIN 
+                    order_detail od ON o.order_id = od.order_id
+                WHERE 
+                    o.order_id = $1 
+                    AND od.store_id = $2
+                LIMIT 1;
+            `;
+            const checkResult = await client.query(ownershipQuery, [order_id, store_id]);
+
+            if (checkResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({ 
+                    message: "Akses ditolak. Pesanan tidak ditemukan atau tidak mengandung item dari toko Anda." 
+                });
+            }
+
+            const currentStatus = checkResult.rows[0].status;
+            
+            // Aturan Transisi Status
+            if (currentStatus === 'waiting for payment') {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: "Pesanan belum dibayar, tidak dapat diproses." });
+            }
+            if (currentStatus === 'completed' && new_status !== 'completed') {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: "Pesanan sudah selesai ('completed'), tidak dapat diubah kembali." });
+            }
+            if (currentStatus === new_status) {
+                 await client.query('ROLLBACK');
+                 return res.status(200).json({ success: true, message: `Status sudah ${new_status}.` });
+            }
+
+            // 2. Update Status Pesanan di tabel "order"
+            // Kita juga mencatat tanggal shipped atau completion
+            const updateStatusQuery = `
+                UPDATE "order" 
+                SET status = $1, 
+                    shipped_date = CASE WHEN $1 = 'shipped' AND shipped_date IS NULL THEN NOW() ELSE shipped_date END,
+                    completion_date = CASE WHEN $1 = 'completed' AND completion_date IS NULL THEN NOW() ELSE completion_date END
+                WHERE order_id = $2 
+                RETURNING order_id;
+            `;
+
+            const updateResult = await client.query(updateStatusQuery, [new_status, order_id]);
+
+            if (updateResult.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: "Update gagal atau pesanan sudah selesai." });
+            }
+
+            await client.query('COMMIT'); // Akhiri Transaksi
+            console.log(`✅ [FULFILLMENT] Store ID ${store_id} mengubah status Order ID ${order_id} menjadi ${new_status}.`);
+
+            res.status(200).json({
+                success: true,
+                message: `Status pesanan ${order_id} berhasil diperbarui menjadi ${new_status}.`,
+                store_id: store_id,
+                new_status: new_status
+            });
+
+        } catch (err) {
+            if (client) {
+                await client.query('ROLLBACK');
+            }
+            console.error('Order Fulfillment Error:', err.stack);
+            res.status(500).json({ message: 'Gagal memproses perubahan status pesanan.' });
+        } finally {
+            if (client) {
+                client.release();
+            }
+        }
+    });
     
     return router;
 };
